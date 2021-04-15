@@ -20,7 +20,7 @@ class Homie:
         self.mqtt_client.on_disconnect = disconnected
         self.mqtt_client.on_message = message
 
-    def publish(self, temperature, humidity, pressure, withDescription=False):
+    def publish(self, temperature, humidity, pressure, ambient_light, withDescription=False):
         # Connect the client to the MQTT broker.
         print("Connecting to MQTT broker...")
         self.mqtt_client.connect()
@@ -29,7 +29,7 @@ class Homie:
             self.mqtt_client.publish("homie/{}/$name".format(self.name), "MQTT Feather-S2 agent", self.retain)
             self.mqtt_client.publish("homie/{}/$nodes".format(self.name), "bme280", self.retain)
 
-            self.mqtt_client.publish("homie/{}/bme280/$name".format(self.name), "BME280 via Feather-S2", self.retain)
+            self.mqtt_client.publish("homie/{}/bme280/$name".format(self.name), "BME280 sensor", self.retain)
             self.mqtt_client.publish("homie/{}/bme280/$type".format(self.name), "bme280", self.retain)
             self.mqtt_client.publish("homie/{}/bme280/$properties".format(self.name), "temperature,pressure,humidity", self.retain)
 
@@ -45,10 +45,19 @@ class Homie:
             self.mqtt_client.publish("homie/{}/bme280/humidity/$unit".format(self.name), "%", self.retain)
             self.mqtt_client.publish("homie/{}/bme280/humidity/$datatype".format(self.name), "float", self.retain)
 
+            self.mqtt_client.publish("homie/{}/alspt19/$name".format(self.name), "ALS-PT19 Ambient Light Sensor", self.retain)
+            self.mqtt_client.publish("homie/{}/alspt19/$type".format(self.name), "als-pt19", self.retain)
+            self.mqtt_client.publish("homie/{}/alspt19/$properties".format(self.name), "light", self.retain)
+
+            self.mqtt_client.publish("homie/{}/alspt19/light/$name".format(self.name), "Light", self.retain)
+            self.mqtt_client.publish("homie/{}/alspt19/light/$unit".format(self.name), "%", self.retain)
+            self.mqtt_client.publish("homie/{}/alspt19/light/$datatype".format(self.name), "float", self.retain)
+
         self.state_ready()
         self.mqtt_client.publish("homie/{}/bme280/temperature".format(self.name), temperature, self.retain)
         self.mqtt_client.publish("homie/{}/bme280/humidity".format(self.name), humidity, self.retain)
         self.mqtt_client.publish("homie/{}/bme280/pressure".format(self.name), pressure, self.retain)
+        self.mqtt_client.publish("homie/{}/alspt19/light".format(self.name), ambient_light, self.retain)
         self.state_sleeping()
         self.mqtt_client.disconnect()
 

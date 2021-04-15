@@ -44,7 +44,7 @@ feathers2.init_step(dotstar, 2)
 try:
     print("Connecting to %s"%config["wifi_ssid"])
     wifi.radio.connect(config["wifi_ssid"], config["wifi_password"])
-    print("Connected to %s!"%config["wifi_ssid"])
+    # print("Connected to %s: channel = %d, bssid = %s" % (config["wifi_ssid"], wifi.Network.channel, wifi.Network.bssid))
     print("IP address:", wifi.radio.ipv4_address)
 except Exception as err:
     feathers2.fatal_error("wifi: {}".format(err), dotstar)
@@ -80,7 +80,14 @@ while True:
         continue
 
     try:
-        homie.publish(temperature, humidity, pressure, first_time)
+        ambient_light = "%d" % feathers2.ambient.value
+
+        print("Ambient light: %s C" % ambient_light)
+    except Exception as err:
+        feathers2.recoverable_error("ambient: {}".format(err), dotstar)
+
+    try:
+        homie.publish(temperature, humidity, pressure, ambient_light, first_time)
         first_time = False
     except Exception as err:
         feathers2.recoverable_error("mqtt: {}".format(err), dotstar)

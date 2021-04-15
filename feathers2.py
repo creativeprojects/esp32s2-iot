@@ -1,7 +1,8 @@
 import time
 import board
 from adafruit_dotstar import DotStar
-from digitalio import DigitalInOut, Direction, Pull
+from digitalio import DigitalInOut, Direction
+from analogio import AnalogIn
 import supervisor
    
 # Helper functions
@@ -84,3 +85,5 @@ led13.direction = Direction.OUTPUT
 # Init LDO2 Pin
 ldo2 = DigitalInOut(board.LDO2)
 ldo2.direction = Direction.OUTPUT
+
+ambient = AnalogIn(board.AMB)
