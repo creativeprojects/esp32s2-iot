@@ -24,7 +24,7 @@ feathers2.enable_LDO2(True)
 dotstar = DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.1, auto_write=True)
 
 # Turn on the internal blue LED
-feathers2.led_set(True)
+feathers2.blue_led_set(True)
 
 # Get configuration from a config.py file
 try:
@@ -61,7 +61,7 @@ feathers2.init_step(dotstar, 4)
 first_time = True
 while True:
     # Invert the internal LED state
-    feathers2.led_set(True)
+    feathers2.blue_led_set(True)
     # clean neoled
     feathers2.dotstar_off(dotstar)
 
@@ -82,7 +82,7 @@ while True:
     try:
         ambient_light = "%d" % feathers2.ambient.value
 
-        print("Ambient light: %s C" % ambient_light)
+        print("Ambient light: %s" % ambient_light)
     except Exception as err:
         feathers2.recoverable_error("ambient: {}".format(err), dotstar)
 
@@ -95,9 +95,5 @@ while True:
         time.sleep(60)
         continue
 
-    # Invert the internal LED state
-    feathers2.led_set(False)
-
     feathers2.success(dotstar)
-
     time.sleep(config["sleep"])

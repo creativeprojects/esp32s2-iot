@@ -4,14 +4,9 @@ from adafruit_dotstar import DotStar
 from digitalio import DigitalInOut, Direction
 from analogio import AnalogIn
 import supervisor
-   
-# Helper functions
 
-def led_blink():
-    """Set the internal LED IO13 to it's inverse state"""
-    led13.value = not led13.value
 
-def led_set(state):
+def blue_led_set(state):
     """Set the internal LED IO13 to this state"""
     led13.value = state
 
@@ -27,7 +22,7 @@ def dotstar_off(dotstar: DotStar):
 
 def fatal_error(message, dotstar: DotStar, flashes=10):
     """Prints the error message on the serial line, then flashes a RED light 10 times, then reloads the microcontroller"""
-    led_set(False)
+    blue_led_set(False)
     if message:
         print("fatal error: {}".format(message))
     i = 0
@@ -42,7 +37,7 @@ def fatal_error(message, dotstar: DotStar, flashes=10):
 
 def recoverable_error(message, dotstar: DotStar, flashes=3):
     """Prints the error message on the serial line, then flashes a RED light 3 times, then continues execution"""
-    led_set(False)
+    blue_led_set(False)
     if message:
         print("recoverable error: {}".format(message))
     i = 0
@@ -56,7 +51,7 @@ def recoverable_error(message, dotstar: DotStar, flashes=3):
 
 def success(dotstar: DotStar, flashes=3):
     """Flashes a GREEN light 3 times"""
-    led_set(False)
+    blue_led_set(False)
     i = 0
     while i < flashes:
         if dotstar:
