@@ -21,7 +21,7 @@ def dotstar_off(dotstar: DotStar):
         dotstar[0] = (0, 0, 0, 0)
 
 def fatal_error(message, dotstar: DotStar, flashes=10):
-    """Prints the error message on the serial line, then flashes a RED light 10 times, then reloads the microcontroller"""
+    """Prints the error message on the serial line, then flashes a RED light n times, then reloads the microcontroller"""
     blue_led_set(False)
     if message:
         print("fatal error: {}".format(message))
@@ -36,7 +36,7 @@ def fatal_error(message, dotstar: DotStar, flashes=10):
     supervisor.reload()
 
 def recoverable_error(message, dotstar: DotStar, flashes=3):
-    """Prints the error message on the serial line, then flashes a RED light 3 times, then continues execution"""
+    """Prints the error message on the serial line, then flashes a RED light n times, then continues execution"""
     blue_led_set(False)
     if message:
         print("recoverable error: {}".format(message))

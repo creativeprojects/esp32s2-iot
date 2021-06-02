@@ -14,6 +14,10 @@ from adafruit_dotstar import DotStar
 BME280_ADDRESS = 0x76
 SoftwareVersion = "1.0.0"
 
+BME280_SENSOR_ERROR=4
+LIGHT_SENSOR_ERROR=5
+NETWORK_ERROR=6
+
 # banner
 print("\nThat4home feather-s2 agent {}".format(SoftwareVersion))
 
@@ -37,7 +41,7 @@ try:
     i2c = busio.I2C(board.SCL, board.SDA)
     bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c, address=BME280_ADDRESS)
 except Exception as err:
-    feathers2.fatal_error("i2c: {}".format(err), dotstar)
+    feathers2.fatal_error("i2c: {}".format(err), dotstar, BME280_SENSOR_ERROR)
 
 feathers2.init_step(dotstar, 2)
 
@@ -47,7 +51,7 @@ try:
     # print("Connected to %s: channel = %d, bssid = %s" % (config["wifi_ssid"], wifi.Network.channel, wifi.Network.bssid))
     print("IP address:", wifi.radio.ipv4_address)
 except Exception as err:
-    feathers2.fatal_error("wifi: {}".format(err), dotstar)
+    feathers2.fatal_error("wifi: {}".format(err), dotstar, NETWORK_ERROR)
 
 feathers2.init_step(dotstar, 3)
 
@@ -74,7 +78,7 @@ while True:
         print("Humidity: %s %%" % humidity)
         print("Pressure: %s hPa" % pressure)
     except Exception as err:
-        feathers2.recoverable_error("bme280: {}".format(err), dotstar)
+        feathers2.recoverable_error("bme280: {}".format(err), dotstar, BME280_SENSOR_ERROR)
         # try again in a minute
         time.sleep(60)
         continue
@@ -84,13 +88,13 @@ while True:
 
         print("Ambient light: %s" % ambient_light)
     except Exception as err:
-        feathers2.recoverable_error("ambient: {}".format(err), dotstar)
+        feathers2.recoverable_error("ambient: {}".format(err), dotstar, LIGHT_SENSOR_ERROR)
 
     try:
         homie.publish(temperature, humidity, pressure, ambient_light, first_time)
         first_time = False
     except Exception as err:
-        feathers2.recoverable_error("mqtt: {}".format(err), dotstar)
+        feathers2.recoverable_error("mqtt: {}".format(err), dotstar, NETWORK_ERROR)
         # try again in a minute
         time.sleep(60)
         continue
