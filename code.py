@@ -1,18 +1,21 @@
-from homie import Homie
+import ssl
 import time
+
 import board
 import busio
-import adafruit_bme280
-import ssl
+import microcontroller
 import socketpool
 import wifi
-import adafruit_minimqtt.adafruit_minimqtt as MQTT
-import feathers2
-import supervisor
+from adafruit_bme280 import advanced as adafruit_bme280
 from adafruit_dotstar import DotStar
+from microcontroller import watchdog
+from watchdog import WatchDogMode
+
+import feathers2
+from homie import Homie
 
 BME280_ADDRESS = 0x76
-SoftwareVersion = "1.0.0"
+SoftwareVersion = "1.1.0"
 
 BME280_SENSOR_ERROR=4
 LIGHT_SENSOR_ERROR=5
@@ -20,6 +23,7 @@ NETWORK_ERROR=6
 
 # banner
 print("\nThat4home feather-s2 agent {}".format(SoftwareVersion))
+print("last reboot was: {}".format(microcontroller.cpu.reset_reason))
 
 # Make sure the 2nd LDO is turned on
 feathers2.enable_LDO2(True)
@@ -62,8 +66,15 @@ homie = Homie(config["name"], config["mqtt_broker"], config["mqtt_port"], pool)
 
 feathers2.init_step(dotstar, 4)
 
+# setting up watchdog
+microcontroller.on_next_reset(microcontroller.RunMode.NORMAL)
+watchdog.timeout = config["watchdog_timer"]
+watchdog.mode = WatchDogMode.RESET
+
 first_time = True
 while True:
+    watchdog.feed()
+
     # Invert the internal LED state
     feathers2.blue_led_set(True)
     # clean neoled

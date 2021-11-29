@@ -3,6 +3,7 @@ import board
 from adafruit_dotstar import DotStar
 from digitalio import DigitalInOut, Direction
 from analogio import AnalogIn
+import microcontroller
 import supervisor
 
 
@@ -72,6 +73,10 @@ def init_step(dotstar: DotStar, step=1):
     elif step==4:
         dotstar[0] = (0x20, 0xfc, 0x03, 0.4) # green
     time.sleep(0.1)
+
+def reboot():
+    microcontroller.on_next_reset(microcontroller.RunMode.NORMAL)
+    microcontroller.reset()
 
 # Init Blink LED
 led13 = DigitalInOut(board.LED)
