@@ -4,10 +4,12 @@ from socketpool import SocketPool
 
 class Homie:
 
-    def __init__(self, name, broker, port, socketPool: SocketPool):
+    def __init__(self, name, broker, port, impl, socketPool: SocketPool):
         self.name = name
+        self.impl = impl
         self.retain = True
         self.qos = 1
+        self.is_connected = False
         self.state_topic = "homie/{}/$state".format(self.name)
         # Set up a MiniMQTT Client
         self.mqtt_client = MQTT(
@@ -22,15 +24,13 @@ class Homie:
         self.mqtt_client.on_disconnect = disconnected
         self.mqtt_client.on_message = message
 
-    def publish(self, temperature, humidity, pressure, ambient_light, withDescription=False):
-        # Connect the client to the MQTT broker.
-        print("Connecting to MQTT broker...")
-        self.mqtt_client.will_set(self.state_topic, "lost", self.qos, self.retain)
-        self.mqtt_client.connect()
+    def publishSensors(self, temperature, humidity, pressure, ambient_light, withDescription=False):
+        self.connect()
         if withDescription:
             self.mqtt_client.publish("homie/{}/$homie".format(self.name), "4.0.0", self.retain, self.qos)
             self.mqtt_client.publish("homie/{}/$name".format(self.name), "MQTT Feather-S2 agent", self.retain, self.qos)
-            self.mqtt_client.publish("homie/{}/$nodes".format(self.name), "bme280", self.retain, self.qos)
+            self.mqtt_client.publish("homie/{}/$implementation".format(self.name), self.impl, self.retain, self.qos)
+            self.mqtt_client.publish("homie/{}/$nodes".format(self.name), "bme280,alspt19,hcsr501", self.retain, self.qos)
 
             self.mqtt_client.publish("homie/{}/bme280/$name".format(self.name), "BME280 sensor", self.retain, self.qos)
             self.mqtt_client.publish("homie/{}/bme280/$type".format(self.name), "bme280", self.retain, self.qos)
@@ -56,13 +56,42 @@ class Homie:
             self.mqtt_client.publish("homie/{}/alspt19/light/$unit".format(self.name), "%", self.retain, self.qos)
             self.mqtt_client.publish("homie/{}/alspt19/light/$datatype".format(self.name), "float", self.retain, self.qos)
 
-        self.state_ready()
+            self.mqtt_client.publish("homie/{}/hcsr501/$name".format(self.name), "HC-SR501 PIR Motion Sensor", self.retain, self.qos)
+            self.mqtt_client.publish("homie/{}/hcsr501/$type".format(self.name), "hc-sr501", self.retain, self.qos)
+            self.mqtt_client.publish("homie/{}/hcsr501/$properties".format(self.name), "motion", self.retain, self.qos)
+
+            self.mqtt_client.publish("homie/{}/hcsr501/motion/$name".format(self.name), "Motion Detection", self.retain, self.qos)
+            self.mqtt_client.publish("homie/{}/hcsr501/motion/$datatype".format(self.name), "boolean", self.retain, self.qos)
+            
         self.mqtt_client.publish("homie/{}/bme280/temperature".format(self.name), temperature, self.retain, self.qos)
         self.mqtt_client.publish("homie/{}/bme280/humidity".format(self.name), humidity, self.retain, self.qos)
         self.mqtt_client.publish("homie/{}/bme280/pressure".format(self.name), pressure, self.retain, self.qos)
         self.mqtt_client.publish("homie/{}/alspt19/light".format(self.name), ambient_light, self.retain, self.qos)
+        self.disconnect()
+    
+    def publishMotion(self, state):
+        self.connect()
+        self.mqtt_client.publish("homie/{}/hcsr501/motion".format(self.name), homieBoolean(state), self.retain, self.qos)
+        # don't disconnect after motion detection, we need to lower the signal down in a few seconds
+        if state == False:
+            self.disconnect()
+
+    def connect(self):
+        if self.is_connected:
+            return True
+        print("Connecting to MQTT broker...")
+        self.mqtt_client.will_set(self.state_topic, "lost", self.qos, self.retain)
+        self.mqtt_client.connect()
+        self.state_ready()
+        self.is_connected = True
+        return True
+    
+    def disconnect(self):
+        if not self.is_connected:
+            return
         self.state_sleeping()
         self.mqtt_client.disconnect()
+        self.is_connected = False
 
     def state_ready(self):
         self.mqtt_client.publish(self.state_topic, "ready", self.retain, self.qos)
@@ -73,13 +102,18 @@ class Homie:
 def connected(client, userdata, flags, rc):
     # This function will be called when the client is connected
     # successfully to the broker.
-    print("Connected to MQTT broker!")
+    print("Connected to MQTT broker")
 
 def disconnected(client, userdata, rc):
     # This method is called when the client is disconnected
-    print("Disconnected from MQTT broker!")
+    print("Disconnected from MQTT broker")
 
 def message(client, topic, message):
     # This method is called when a topic the client is subscribed to
     # has a new message.
     print("New message on topic {0}: {1}".format(topic, message))
+
+def homieBoolean(state):
+    if state == True:
+        return "true"
+    return "false"

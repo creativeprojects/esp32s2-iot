@@ -10,16 +10,22 @@ from adafruit_bme280 import advanced as adafruit_bme280
 from adafruit_dotstar import DotStar
 from microcontroller import watchdog
 from watchdog import WatchDogMode
+from digitalio import DigitalInOut, Direction, Pull
 
 import feathers2
 from homie import Homie
 
-BME280_ADDRESS = 0x76
-SoftwareVersion = "1.1.0"
+SECOND          = 1e+9
+BME280_ADDRESS  = 0x76
+SoftwareVersion = "1.2.0"
 
-BME280_SENSOR_ERROR=4
-LIGHT_SENSOR_ERROR=5
-NETWORK_ERROR=6
+BME280_SENSOR_ERROR = 4
+LIGHT_SENSOR_ERROR  = 5
+NETWORK_ERROR       = 6
+
+DOTSTAR_CLOCK_PIN = board.APA102_SCK
+DOTSTAR_DATA_PIN  = board.APA102_MOSI
+PIR_MOTION_PIN    = board.D13
 
 # banner
 print("\nThat4home feather-s2 agent {}".format(SoftwareVersion))
@@ -29,10 +35,16 @@ print("last reboot was: {}".format(microcontroller.cpu.reset_reason))
 feathers2.enable_LDO2(True)
 
 # Create a DotStar instance
-dotstar = DotStar(board.APA102_SCK, board.APA102_MOSI, 1, brightness=0.1, auto_write=True)
+dotstar = DotStar(DOTSTAR_CLOCK_PIN, DOTSTAR_DATA_PIN, 1, brightness=0.1, auto_write=True)
+
+# motion detection
+detector = DigitalInOut(PIR_MOTION_PIN)
+detector.direction = Direction.INPUT
+detector.pull = Pull.UP
+motionState = False
 
 # Turn on the internal blue LED
-feathers2.blue_led_set(True)
+feathers2.working(True)
 
 # Get configuration from a config.py file
 try:
@@ -62,7 +74,7 @@ feathers2.init_step(dotstar, 3)
 # Create a socket pool
 pool = socketpool.SocketPool(wifi.radio)
 
-homie = Homie(config["name"], config["mqtt_broker"], config["mqtt_port"], pool)
+homie = Homie(config["name"], config["mqtt_broker"], config["mqtt_port"], SoftwareVersion, pool)
 
 feathers2.init_step(dotstar, 4)
 
@@ -76,7 +88,7 @@ while True:
     watchdog.feed()
 
     # Invert the internal LED state
-    feathers2.blue_led_set(True)
+    feathers2.working(True)
     # clean neoled
     feathers2.dotstar_off(dotstar)
 
@@ -102,7 +114,7 @@ while True:
         feathers2.recoverable_error("ambient: {}".format(err), dotstar, LIGHT_SENSOR_ERROR)
 
     try:
-        homie.publish(temperature, humidity, pressure, ambient_light, first_time)
+        homie.publishSensors(temperature, humidity, pressure, ambient_light, first_time)
         first_time = False
     except Exception as err:
         feathers2.recoverable_error("mqtt: {}".format(err), dotstar, NETWORK_ERROR)
@@ -111,4 +123,18 @@ while True:
         continue
 
     feathers2.success(dotstar)
-    time.sleep(config["sleep"])
+
+    # write down the time before entering sub-loop
+    latest = time.monotonic_ns()
+
+    while motionState or latest + (config["sleep"] * SECOND) > time.monotonic_ns():
+        if motionState != detector.value:
+            motionState = detector.value
+            # print("Detection: {} at {}".format(motionState, time.monotonic_ns()))
+            feathers2.motion(dotstar, motionState)
+            homie.publishMotion(motionState)
+            # wait for 5 seconds after a detection
+            time.sleep(5)
+            continue
+        time.sleep(0.3)
+
