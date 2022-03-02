@@ -1,5 +1,14 @@
 # esp32s2-iot
 
+Send temperature, humidity, pressure, ambient light, and motion detection to MQTT.
+Get feedback from the board LED.
+
+## hardware
+
+* Microcontroller: Unexpectedmaker FeatherS2
+* Temperature sensor: BME280 via I2C bus
+* Motion sensor: HC-SR501 PIR on pin D13 (11)
+
 ## config
 
 `config.py`
