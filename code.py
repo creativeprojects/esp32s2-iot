@@ -52,6 +52,11 @@ try:
 except ImportError:
     feathers2.fatal_error("missing config.py file", dotstar)
 
+# setting up watchdog
+microcontroller.on_next_reset(microcontroller.RunMode.NORMAL)
+watchdog.timeout = config["watchdog_timer"]
+watchdog.mode = WatchDogMode.RESET
+
 feathers2.init_step(dotstar, 1)
 try:
     i2c = busio.I2C(board.SCL, board.SDA)
@@ -77,11 +82,6 @@ pool = socketpool.SocketPool(wifi.radio)
 homie = Homie(config["name"], config["mqtt_broker"], config["mqtt_port"], SoftwareVersion, pool)
 
 feathers2.init_step(dotstar, 4)
-
-# setting up watchdog
-microcontroller.on_next_reset(microcontroller.RunMode.NORMAL)
-watchdog.timeout = config["watchdog_timer"]
-watchdog.mode = WatchDogMode.RESET
 
 first_time = True
 while True:
@@ -133,8 +133,12 @@ while True:
             # print("Detection: {} at {}".format(motionState, time.monotonic_ns()))
             feathers2.motion(dotstar, motionState)
             homie.publishMotion(motionState)
-            # wait for 5 seconds after a detection
-            time.sleep(5)
+            if motionState:
+                # wait for 3 seconds after a detection
+                time.sleep(3)
+            else:
+                # signal going down, wait for a minute
+                time.sleep(60)
             continue
         time.sleep(0.3)
 

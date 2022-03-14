@@ -34,7 +34,7 @@ def fatal_error(message, dotstar: DotStar, flashes=10):
             dotstar[0] = (0, 0, 0, 0)
         time.sleep(1.5)
         i+=1
-    supervisor.reload()
+    reboot()
 
 def recoverable_error(message, dotstar: DotStar, flashes=3):
     """Prints the error message on the serial line, then flashes a RED light n times, then continues execution"""
@@ -77,7 +77,7 @@ def init_step(dotstar: DotStar, step=1):
 def motion(dotstar: DotStar, state):
     if dotstar:
         if state:
-            dotstar[0] = (0x03, 0x13, 0xfc) # blue
+            dotstar[0] = (128, 128, 128, 0.3) # gray
         else:
             dotstar[0] = (0, 0, 0, 0)
 
