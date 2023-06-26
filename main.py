@@ -1,4 +1,3 @@
-import ssl
 import time
 
 import board
@@ -17,7 +16,7 @@ from homie import Homie
 
 SECOND          = 1e+9
 BME280_ADDRESS  = 0x76
-SoftwareVersion = "1.2.0"
+SoftwareVersion = "1.3.0"
 
 BME280_SENSOR_ERROR = 4
 LIGHT_SENSOR_ERROR  = 5
@@ -84,8 +83,10 @@ homie = Homie(config["name"], config["mqtt_broker"], config["mqtt_port"], Softwa
 feathers2.init_step(dotstar, 4)
 
 first_time = True
+network_error = False
 while True:
-    watchdog.feed()
+    if not network_error:
+        watchdog.feed()
 
     # Invert the internal LED state
     feathers2.working(True)
@@ -116,8 +117,10 @@ while True:
     try:
         homie.publishSensors(temperature, humidity, pressure, ambient_light, first_time)
         first_time = False
+        network_error = False
     except Exception as err:
         feathers2.recoverable_error("mqtt: {}".format(err), dotstar, NETWORK_ERROR)
+        network_error = True
         # try again in a minute
         time.sleep(60)
         continue
@@ -132,7 +135,16 @@ while True:
             motionState = detector.value
             # print("Detection: {} at {}".format(motionState, time.monotonic_ns()))
             feathers2.motion(dotstar, motionState)
-            homie.publishMotion(motionState)
+            try:
+                homie.publishMotion(motionState)
+                network_error = False
+            except Exception as err:
+                feathers2.recoverable_error("mqtt: {}".format(err), dotstar, NETWORK_ERROR)
+                network_error = True
+                # try again in a minute
+                time.sleep(60)
+                continue
+
             if motionState:
                 # wait for 3 seconds after a detection
                 time.sleep(3)
