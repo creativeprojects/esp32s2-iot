@@ -95,12 +95,14 @@ if config[config_key.MQTT_USE_TLS]:
         ssl_context.load_verify_locations(cadata=config[config_key.CA_DATA])
 
 homie = Homie(
-    config[config_key.NAME], 
-    config[config_key.MQTT_BROKER], 
-    config[config_key.MQTT_PORT], 
-    SoftwareVersion, 
-    pool,
-    ssl_context,
+    name = config[config_key.NAME], 
+    broker = config[config_key.MQTT_BROKER], 
+    port = config[config_key.MQTT_PORT], 
+    impl = SoftwareVersion, 
+    socketPool = pool,
+    ssl_context = ssl_context,
+    username = config[config_key.MQTT_USERNAME] if config_key.MQTT_USERNAME in config else None,
+    password = config[config_key.MQTT_PASSWORD] if config_key.MQTT_PASSWORD in config else None,
 )
 
 feathers2.init_step(dotstar, 4)
