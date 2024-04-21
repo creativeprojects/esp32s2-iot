@@ -2,6 +2,7 @@ import time
 
 import board
 import busio
+import config_key
 import microcontroller
 import socketpool
 import wifi
@@ -16,12 +17,13 @@ from homie import Homie
 
 SECOND          = 1e+9
 BME280_ADDRESS  = 0x76
-SoftwareVersion = "1.3.0"
+SoftwareVersion = "1.4.0"
 
 BME280_SENSOR_ERROR = 4
 LIGHT_SENSOR_ERROR  = 5
 NETWORK_ERROR       = 6
 
+DEFAULT_BRIGHTNESS = 0.1
 DOTSTAR_CLOCK_PIN = board.APA102_SCK
 DOTSTAR_DATA_PIN  = board.APA102_MOSI
 PIR_MOTION_PIN    = board.D13
@@ -34,7 +36,7 @@ print("last reboot was: {}".format(microcontroller.cpu.reset_reason))
 feathers2.enable_LDO2(True)
 
 # Create a DotStar instance
-dotstar = DotStar(DOTSTAR_CLOCK_PIN, DOTSTAR_DATA_PIN, 1, brightness=0.1, auto_write=True)
+dotstar = DotStar(DOTSTAR_CLOCK_PIN, DOTSTAR_DATA_PIN, 1, brightness=DEFAULT_BRIGHTNESS, auto_write=True)
 
 # motion detection
 detector = DigitalInOut(PIR_MOTION_PIN)
@@ -52,9 +54,12 @@ except ImportError:
     feathers2.fatal_error("missing config.py file", dotstar)
 
 # setting up watchdog
-microcontroller.on_next_reset(microcontroller.RunMode.NORMAL)
-watchdog.timeout = config["watchdog_timer"]
-watchdog.mode = WatchDogMode.RESET
+try:
+    microcontroller.on_next_reset(microcontroller.RunMode.NORMAL)
+    watchdog.timeout = config[config_key.WATCHDOG_TIMER]
+    watchdog.mode = WatchDogMode.RESET
+except Exception as err:
+    feathers2.fatal_error("watchdog: {}".format(err), dotstar)
 
 feathers2.init_step(dotstar, 1)
 try:
@@ -66,9 +71,10 @@ except Exception as err:
 feathers2.init_step(dotstar, 2)
 
 try:
-    print("Connecting to %s"%config["wifi_ssid"])
-    wifi.radio.connect(config["wifi_ssid"], config["wifi_password"])
-    # print("Connected to %s: channel = %d, bssid = %s" % (config["wifi_ssid"], wifi.Network.channel, wifi.Network.bssid))
+    wifi_ssid = config[config_key.WIFI_SSID]
+    print("Connecting to %s"%wifi_ssid)
+    wifi.radio.connect(wifi_ssid, config[config_key.WIFI_PASSWORD])
+    # print("Connected to %s: channel = %d, bssid = %s" % (wifi_ssid, wifi.Network.channel, wifi.Network.bssid))
     print("IP address:", wifi.radio.ipv4_address)
 except Exception as err:
     feathers2.fatal_error("wifi: {}".format(err), dotstar, NETWORK_ERROR)
@@ -78,7 +84,24 @@ feathers2.init_step(dotstar, 3)
 # Create a socket pool
 pool = socketpool.SocketPool(wifi.radio)
 
-homie = Homie(config["name"], config["mqtt_broker"], config["mqtt_port"], SoftwareVersion, pool)
+ssl_context = None
+if config[config_key.MQTT_USE_TLS]:
+    try:
+        import ssl
+    except ImportError as e:
+        print("ssl module not found: ", str(e))
+    else:
+        ssl_context = ssl.create_default_context()
+        ssl_context.load_verify_locations(cadata=config[config_key.CA_DATA])
+
+homie = Homie(
+    config[config_key.NAME], 
+    config[config_key.MQTT_BROKER], 
+    config[config_key.MQTT_PORT], 
+    SoftwareVersion, 
+    pool,
+    ssl_context,
+)
 
 feathers2.init_step(dotstar, 4)
 
@@ -130,27 +153,29 @@ while True:
     # write down the time before entering sub-loop
     latest = time.monotonic_ns()
 
-    while motionState or latest + (config["sleep"] * SECOND) > time.monotonic_ns():
-        if motionState != detector.value:
-            motionState = detector.value
-            # print("Detection: {} at {}".format(motionState, time.monotonic_ns()))
-            feathers2.motion(dotstar, motionState)
-            try:
-                homie.publishMotion(motionState)
-                network_error = False
-            except Exception as err:
-                feathers2.recoverable_error("mqtt: {}".format(err), dotstar, NETWORK_ERROR)
-                network_error = True
-                # try again in a minute
-                time.sleep(60)
+    if config[config_key.MOTION_DETECTION]:
+        while motionState or latest + (config[config_key.SLEEP] * SECOND) > time.monotonic_ns():
+            if motionState != detector.value:
+                motionState = detector.value
+                # print("Detection: {} at {}".format(motionState, time.monotonic_ns()))
+                feathers2.motion(dotstar, motionState)
+                try:
+                    homie.publishMotion(motionState)
+                    network_error = False
+                except Exception as err:
+                    feathers2.recoverable_error("mqtt: {}".format(err), dotstar, NETWORK_ERROR)
+                    network_error = True
+                    # try again in a minute
+                    time.sleep(60)
+                    continue
+
+                if motionState:
+                    # wait for 3 seconds after a detection
+                    time.sleep(3)
+                else:
+                    # signal going down, wait for a minute
+                    time.sleep(60)
                 continue
-
-            if motionState:
-                # wait for 3 seconds after a detection
-                time.sleep(3)
-            else:
-                # signal going down, wait for a minute
-                time.sleep(60)
-            continue
-        time.sleep(0.3)
-
+            time.sleep(0.3)
+    else:
+        time.sleep(config[config_key.SLEEP])

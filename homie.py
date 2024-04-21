@@ -4,7 +4,7 @@ from socketpool import SocketPool
 
 class Homie:
 
-    def __init__(self, name, broker, port, impl, socketPool: SocketPool):
+    def __init__(self, name: str, broker: str, port: int, impl: str, socketPool: SocketPool, ssl_context=None, username: str = None, password: str = None):
         self.name = name
         self.impl = impl
         self.retain = True
@@ -13,10 +13,13 @@ class Homie:
         self.state_topic = "homie/{}/$state".format(self.name)
         # Set up a MiniMQTT Client
         self.mqtt_client = MQTT(
-            broker=broker,
-            port=port,
-            socket_pool=socketPool,
-            # ssl_context=ssl.create_default_context(),
+            broker = broker,
+            port = port,
+            socket_pool = socketPool,
+            ssl_context = ssl_context,
+            is_ssl = ssl_context is not None,
+            username = username,
+            password = password,
         )
     
         # Setup the callback methods above
